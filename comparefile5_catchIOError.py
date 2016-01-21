@@ -1,0 +1,152 @@
+#!/usr/bin/python
+# compatible with both Python 3 and Python 2
+
+import sys, locale
+from optparse import OptionParser
+
+class readfile:
+	def __init__(self, filename):
+		f = open(filename, 'r')
+		self.lines = f.readlines()
+		f.close()
+
+	def outputLine(self, num):
+		return self.lines[num]
+
+	def lineCount(self):
+		return len(self.lines)
+
+
+def main():
+	version_msg = "%prog 1.0 by Yingbo Wang"
+	usage_msg = """%prog [OPTION]... FILE1 FILE2
+
+A Python script to compare two files and output the difference """
+
+# initialize the parser
+	parser = OptionParser(version=version_msg,usage=usage_msg)
+	parser.add_option("-1", action="store_false", dest="column1", default=True)
+	parser.add_option("-2", action="store_false", dest="column2", default=True)
+	parser.add_option("-3", action="store_false", dest="column3", default=True)
+		
+	parser.add_option("-u", action="store_true", dest="ignoreSort", default=False)
+
+	options, args = parser.parse_args(sys.argv[1:])
+
+	if len(args) != 2:
+		parser.error("Wrong number of operands: there should be two files for comparison. ")
+
+	input_file1 = args[0]
+	input_file2 = args[1]
+
+# reading file1 and file2 into the program
+	try:
+		reader1 = readfile(input_file1)
+		reader2 = readfile(input_file2)
+	except IOError as error:
+		parser.error("I/O error({0}): {1}".format(error.errno, error.strerror))
+
+	lineNum1 = reader1.lineCount()
+	lineNum2 = reader2.lineCount()
+
+	file1 = {}
+	file2 = {}
+
+	for i in range(0, lineNum1):
+		file1[i] = reader1.outputLine(i)
+
+	for i in range(0, lineNum2):
+		file2[i] = reader2.outputLine(i)
+
+# checking if file1 and file2 are in sorted order
+	file1Order = 0
+	file2Order = 0
+	notSorted = False
+
+	for i in range(len(file1)-1):
+		if locale.strcoll(file1[i], file1[i+1]) < 0:
+			if file1Order == 0:
+				file1Order = -1
+			if file1Order == 1:
+				sys.stdout.write("comm: FILE1 not in sorted order. \n")
+				notSorted = True
+
+		if locale.strcoll(file1[i], file1[i+1]) > 0:
+			if file1Order == 0:
+				file1Order = 1
+			if file1Order == -1:
+				sys.stdout.write("comm: FILE1 not in sorted order. \n")
+				notSorted = True
+
+	for i in range(len(file2)-1):
+		if locale.strcoll(file2[i], file2[i+1]) < 0:
+			if file2Order == 0:
+				file2Order = -1
+			if file2Order == 1:
+				sys.stdout.write("comm: FILE2 not in sorted order. \n")
+				notSorted = True
+
+		if locale.strcoll(file2[i], file2[i+1]) > 0:
+			if file2Order == 0:
+				file2Order = 1
+			if file2Order == -1:
+				sys.stdout.write("comm: FILE2 not in sorted order. \n")
+				notSorted = True
+
+	if not options.ignoreSort and notSorted:
+		sys.exit()
+
+# comparing two files
+	column1 = []
+	column2 = []
+	column3 = []
+	sameLinesInFile2 = []
+
+	for i in range(0, len(file1)):
+		inFile2 = False
+		for j in range(0, len(file2)):
+			result = locale.strcoll(file1[i], file2[j])
+			if result == 0:
+				sameLinesInFile2.append(j)
+				if not inFile2:
+					column3.append(file1[i]) # line in both file1 and file2
+					# only print line once if multiple same lines are in file2
+				inFile2 = True		
+		if not inFile2:
+			column1.append(file1[i]) # line only in file1
+		
+	for i in range(0, len(file2)):
+		if i not in sameLinesInFile2:
+			column2.append(file2[i]) # line only in file2
+		
+# print results
+
+	for i in range(len(column1)):
+		if options.column1 == True:
+			sys.stdout.write(column1[i])
+
+	for i in range(len(column3)):
+		if options.column3 == True:
+			if options.column2 == True and options.column1 == True:
+				out = "\t\t" + column3[i]
+				sys.stdout.write(out)
+			elif options.column2 == False and options.column1 == False:
+				out = column3[i]
+				sys.stdout.write(out)
+			else:
+				out = "\t" + column3[i]
+				sys.stdout.write(out)
+
+	for i in range(len(column2)):
+		if options.column2 == True:
+			if options.column1 == True:
+				out = "\t" + column2[i]
+				sys.stdout.write(out)
+			else:
+				out = column2[i]
+				sys.stdout.write(out)
+				
+
+if __name__ == "__main__":
+	main()
+
